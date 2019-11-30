@@ -1,0 +1,58 @@
+#include <ESP32Servo.h>
+
+Servo servo1;
+Servo servo2;
+Servo servo3;
+Servo servo4;
+Servo servo5;
+
+int servo1Pin = 13;
+int servo2Pin = 12;
+int servo3Pin = 14;
+int servo4Pin = 27;
+int servo5Pin = 26;
+
+// Published values for SG90 servos; adjust if needed
+int minUs = 1000;
+int maxUs = 2000;
+
+int freq = 1000;
+
+
+int pos = 0;      // position in degrees
+ESP32PWM pwm;
+
+void setup() {
+  Serial.begin(115200);
+  servo1.setPeriodHertz(50);      // Standard 50hz servo
+  servo2.setPeriodHertz(50);      // Standard 50hz servo
+  servo3.setPeriodHertz(50);      // Standard 50hz servo
+  servo4.setPeriodHertz(50);      // Standard 50hz servo
+  servo5.setPeriodHertz(50);      // Standard 50hz servo
+
+  servo1.attach(servo1Pin, 1000, 2000);
+  servo2.attach(servo2Pin, minUs, maxUs);
+  servo3.attach(servo3Pin, minUs, maxUs);
+  servo4.attach(servo4Pin, minUs, maxUs);
+  servo5.attach(servo5Pin, minUs, maxUs);
+
+
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  servo2.write(90);
+  servo3.write(90);
+  servo4.write(90);
+  servo5.write(90);
+  
+for (pos = 0; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees
+    // in steps of 1 degree
+    servo1.write(pos);    // tell servo to go to position in variable 'pos'
+    delay(15);             // waits 15ms for the servo to reach the position
+  }
+  for (pos = 180; pos >= 0; pos -= 1) { // goes from 180 degrees to 0 degrees
+    servo1.write(pos);    // tell servo to go to position in variable 'pos'
+    delay(15);             // waits 15ms for the servo to reach the position
+  }
+}
