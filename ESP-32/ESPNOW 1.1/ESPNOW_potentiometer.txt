@@ -1,0 +1,164 @@
+#include <esp_now.h>
+#include <WiFi.h>
+
+#define LED_PIN 2
+int WIFI_CHANNEL = 1;
+static uint8_t broadcast_mac[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+
+
+//potentiometer pins
+const int potPin1 = 34;
+const int potPin2 = 35;
+const int potPin3 = 32;
+const int potPin4 = 33;
+const int potPin5 = 39;
+
+//potentiometer values
+int potValue1 = 0;
+int potValue2 = 0;
+int potValue3 = 0;
+int potValue4 = 0;
+int potValue5 = 0;
+
+
+#define SENDER
+typedef struct __attribute__((packed)) esp_now_msg_t
+{
+  uint32_t address;
+  uint32_t counter;
+  uint16_t servo1;
+  uint16_t servo2;
+  uint16_t servo3;
+  uint16_t servo4;
+  uint16_t servo5;
+  // Can put lots of things here...
+} esp_now_msg_t;
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(LED_PIN,OUTPUT);
+  digitalWrite(LED_PIN,LOW);
+
+  network_setup();
+}
+
+static void network_setup(void)
+{
+  //Puts ESP in STATION MODE
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  if (esp_now_init() != 0)
+  {
+    return;
+  }
+  esp_now_peer_info_t peer_info;
+  peer_info.channel = WIFI_CHANNEL;
+  memcpy(peer_info.peer_addr, broadcast_mac, 6);
+  peer_info.ifidx = ESP_IF_WIFI_STA;
+  peer_info.encrypt = false;
+  esp_err_t status = esp_now_add_peer(&peer_info);
+  if (ESP_OK != status)
+  {
+    Serial.println("Could not add peer");
+    Serial.println(status);
+  }
+   // Set up callback
+  status = esp_now_register_recv_cb(msg_recv_cb);
+  if (ESP_OK != status)
+  {
+    Serial.println("Could not register callback");
+    Serial.println(status);
+  }
+
+  status = esp_now_register_send_cb(msg_send_cb);
+  if (ESP_OK != status)
+  {
+    Serial.println("Could not register send callback");
+    Serial.println(status);
+  }
+}
+
+void loop() {
+  // Need some delay for watchdog feeding in loop
+  delay(100);
+  potentiometerread();
+  #ifdef SENDER
+  static uint32_t counter = 0;
+  esp_now_msg_t msg;
+  msg.address = 0;
+  msg.counter = ++counter;
+  msg.servo1 = potValue1;
+  msg.servo2 = potValue2;
+  msg.servo3 = potValue3;
+  msg.servo4 = potValue4;
+  msg.servo5 = potValue5;
+  Serial.println(potValue1);
+  Serial.println(potValue2);
+  Serial.println(potValue3);
+  Serial.println(potValue4);
+  Serial.println(potValue5);
+  Serial.println(sizeof(esp_now_msg_t));
+  send_msg(&msg);
+  digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+  #endif
+
+}
+
+
+
+
+static void send_msg(esp_now_msg_t * msg)
+{
+  // Pack
+  uint16_t packet_size = sizeof(esp_now_msg_t);
+  uint8_t msg_data[packet_size];
+  memcpy(&msg_data[0], msg, sizeof(esp_now_msg_t));
+
+  esp_err_t status = esp_now_send(broadcast_mac, msg_data, packet_size);
+  if (ESP_OK != status)
+  {
+    Serial.println("Error sending message");
+    Serial.println(status);
+  }
+}
+
+static void msg_send_cb(const uint8_t* mac, esp_now_send_status_t sendStatus)
+{
+
+  switch (sendStatus)
+  {
+    case ESP_NOW_SEND_SUCCESS:
+      Serial.println("Send success");
+      break;
+
+    case ESP_NOW_SEND_FAIL:
+      Serial.println("Send Failure");
+      break;
+
+    default:
+      break;
+  }
+}
+
+static void msg_recv_cb(const uint8_t *mac_addr, const uint8_t *data, int len)
+{
+  if (len == sizeof(esp_now_msg_t))
+  {
+    esp_now_msg_t msg;
+    memcpy(&msg, data, len);
+
+    Serial.print("Counter: ");
+    Serial.println(msg.counter);
+    digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+  }
+}
+
+void potentiometerread ()
+{
+  potValue1 = analogRead(potPin1);
+  potValue2 = analogRead(potPin2);
+  potValue3 = analogRead(potPin3);
+  potValue4 = analogRead(potPin4);
+  potValue5 = analogRead(potPin5);
+}
